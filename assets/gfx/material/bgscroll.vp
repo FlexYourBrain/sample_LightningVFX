@@ -1,0 +1,20 @@
+attribute highp vec4 position;
+attribute mediump vec2 texcoord0;
+
+uniform mediump mat4 mtx_worldview;
+uniform mediump mat4 mtx_proj;
+uniform mediump vec4 animation_time;
+
+varying mediump vec2 var_texcoord0;
+varying mediump vec2 var_texcoord1;
+varying mediump vec2 var_texcoord2;
+
+void main()
+{
+    
+    vec4 p = mtx_worldview * vec4(position.xyz, 1.0);
+    var_texcoord0 = texcoord0;
+    var_texcoord1 = vec2(texcoord0.x, texcoord0.y + animation_time.x);
+    var_texcoord2 = vec2(texcoord0.x, texcoord0.y + animation_time.x * 4.0);
+    gl_Position = mtx_proj * p;
+}

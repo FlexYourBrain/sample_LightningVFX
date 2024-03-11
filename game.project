@@ -1,0 +1,42 @@
+[project]
+title = Lightning VFX sample
+developer = Agustin R
+
+[bootstrap]
+main_collection = /main/main.collectionc
+render = /assets/mesh_system/render/DeLab.renderc
+
+[input]
+game_binding = /input/game.input_bindingc
+use_accelerometer = 0
+
+[display]
+width = 720
+height = 1020
+update_frequency = 60
+
+[script]
+shared_state = 1
+
+[android]
+input_method = HiddenInputField
+
+[physics]
+gravity_y = -1000.0
+scale = 0.01
+
+[particle_fx]
+max_count = 512
+
+[html5]
+cssfile = /builtins/manifests/web/dark_theme.css
+show_fullscreen_button = 0
+show_made_with_defold = 0
+show_console_banner = 1
+scale_mode = stretch
+
+[graphics]
+default_texture_min_filter = nearest
+default_texture_mag_filter = nearest
+texture_profiles = /assets/mesh_system/render/format.texture_profiles
+

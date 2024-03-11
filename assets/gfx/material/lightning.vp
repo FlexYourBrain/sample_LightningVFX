@@ -1,0 +1,12 @@
+attribute highp vec4 position; 
+attribute mediump vec2 texcoord0;
+
+uniform highp mat4 worldview_proj;
+varying mediump vec2 var_texcoord0;
+
+void main()
+{
+    var_texcoord0 = texcoord0;
+    
+    gl_Position = worldview_proj * vec4(position.xyz, 1.0);
+}

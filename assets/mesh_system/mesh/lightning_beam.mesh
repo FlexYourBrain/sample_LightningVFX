@@ -1,0 +1,4 @@
+material: "/assets/gfx/material/lightning.material"
+vertices: "/assets/mesh_system/mesh/lightning_beam.buffer"
+textures: "/assets/mesh_system/render/lightning.render_target"
+primitive_type: PRIMITIVE_TRIANGLES

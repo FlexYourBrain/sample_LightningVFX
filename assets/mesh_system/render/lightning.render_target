@@ -1,0 +1,11 @@
+color_attachments {
+  width: 96
+  height: 820
+  format: TEXTURE_FORMAT_RGBA_16BPP
+}
+depth_stencil_attachment {
+  width: 0
+  height: 0
+  format: DEPTH_STENCIL_FORMAT_D24U_S8U
+  texture_storage: false
+}

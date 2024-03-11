@@ -1,0 +1,163 @@
+--
+-- DeLab - Custom renderscript for Lighning VFX
+--
+
+local MSG_CLEAR_COLOR = hash("clear_color")
+local MSG_WINDOW_RESIZED = hash("window_resized")
+local MSG_SET_CAPTURE = hash("set_capture")
+local MSG_SET_VIEW_PROJECTION = hash("set_view_projection")
+local MSG_USE_CAMERA_PROJECTION = hash("use_camera_projection")
+local MSG_USE_STRETCH_PROJECTION = hash("use_stretch_projection")
+
+local function stretch_projection(near, far)
+    
+    return vmath.matrix4_orthographic(0, render.get_width(), 0, render.get_height(), near, far)
+end
+
+local function get_projection(self)
+    
+    return self.projection_fn(self.near, self.far, self.zoom)
+end
+
+local function update_rendertarget(self) -- resize render target buffer
+    
+    self.window_width = render.get_window_width()
+    self.window_height = render.get_window_height()
+    ---------------------- scale render target with stretch --------------------------------
+       local rt_width = 96
+       local rt_height = 820
+       local project_window_height = render.get_height()
+       local project_window_width = render.get_width()
+       local scale_factor_height = self.window_height / project_window_height
+       local scale_factor_width = self.window_width / project_window_width
+       local rt_height_scaled = math.floor(rt_height * scale_factor_height)
+       local rt_width_scaled = math.floor(rt_width * scale_factor_width)
+        
+       render.set_render_target_size(self.offscreen_buffer, rt_width_scaled, rt_height_scaled)
+    ---------------------------------------------------------------------------------------
+    
+end
+
+function init(self)
+    
+    self.tile_pred = render.predicate({"tile"})
+    self.gui_pred = render.predicate({"gui"})
+    self.particle_pred = render.predicate({"particle"})
+    self.model_pred = render.predicate({"model"})
+    self.offscreen_pred = render.predicate({"captured"})
+    self.offscreen_sprite_pred = render.predicate({"offscreen"})
+
+    self.clear_color = vmath.vector4(0, 0, 0, 0)
+    self.clear_color.x = sys.get_config("render.clear_color_red", 0)
+    self.clear_color.y = sys.get_config("render.clear_color_green", 0)
+    self.clear_color.z = sys.get_config("render.clear_color_blue", 0)
+    self.clear_color.w = sys.get_config("render.clear_color_alpha", 0)
+
+    self.view = vmath.matrix4()
+    self.near = -1
+    self.far = 1
+    self.projection_fn = stretch_projection
+    
+    self.window_width = render.get_window_width()
+    self.window_height = render.get_window_height()
+
+------ Offscreen Buffer initialize --------
+    self.capture_On = false -- boolean to turn capture on or off
+    self.offscreen_buffer = "capture"
+    
+end
+
+function update(self)
+
+    if self.window_width == 0 or self.window_height == 0 then
+        return
+    end
+    local proj = get_projection(self)
+    local frustum_component = proj * self.view
+
+    render.set_depth_mask(true)
+    render.set_stencil_mask(0xff)
+    render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color, [render.BUFFER_DEPTH_BIT] = 1, [render.BUFFER_STENCIL_BIT] = 0})
+    
+    render.set_viewport(0, 0, self.window_width, self.window_height)
+    render.set_view(self.view)
+    render.set_projection(proj)
+
+    render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
+    render.enable_state(render.STATE_BLEND)
+    
+------------ RENDER OFFSCREEN BUFFER --------------------------
+    if self.capture_On then -- start rendering only when needed
+    
+        render.set_render_target(self.offscreen_buffer) -- set render target offscreen buffer
+        render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color}) -- clear the buffer color bit
+        render.draw(self.offscreen_sprite_pred) -- draw the offscreen predicate to the render target
+        render.set_render_target(render.RENDER_TARGET_DEFAULT) -- unbind render target
+    
+    end
+------------ RENDER SCENE  ------------------------------------
+    render.set_depth_mask(true)
+    render.enable_state(render.STATE_DEPTH_TEST)
+    render.enable_state(render.STATE_STENCIL_TEST)
+
+    -- render models and offscreen buffer
+    --
+    render.draw(self.model_pred, {frustum = frustum_component})
+    
+    if self.capture_On then-- now draw offscreen buffer when needed
+        render.enable_texture("lightning", self.offscreen_buffer, render. BUFFER_COLOR0_BIT)
+        render.draw(self.offscreen_pred)
+        render.disable_texture("lightning", self.offscreen_buffer)
+    end
+    
+    render.disable_state(render.STATE_STENCIL_TEST)
+    render.disable_state(render.STATE_DEPTH_TEST)
+    render.set_depth_mask(false)
+    
+    -- render sprites, label, particles
+    --
+    render.draw(self.tile_pred, {frustum = frustum_component})
+    render.draw(self.particle_pred, {frustum = frustum_component})
+    -----------------------------------------------------------
+    
+    -- debug
+    render.draw_debug3d()
+    
+    -- render GUI
+    --
+    local view_gui = vmath.matrix4()
+    local proj_gui = vmath.matrix4_orthographic(0, self.window_width, 0, self.window_height, -1, 1)
+    local frustum_gui = proj_gui * view_gui
+
+    render.set_view(view_gui)
+    render.set_projection(proj_gui)
+
+    render.enable_state(render.STATE_STENCIL_TEST)
+    render.draw(self.gui_pred, {frustum = frustum_gui})
+    render.disable_state(render.STATE_STENCIL_TEST)
+    render.disable_state(render.STATE_BLEND)
+    
+end
+
+function on_message(self, message_id, message)
+    
+    if message_id == MSG_CLEAR_COLOR then
+        self.clear_color = message.color
+    elseif message_id == MSG_WINDOW_RESIZED then
+    -- When window is resized we 'refresh' the window width & height self tables
+    -- then we calculate a scale factor from window width & height and resize the render target to match stretch projection.
+        update_rendertarget(self)
+    elseif message_id == MSG_SET_CAPTURE then
+        self.capture_On = not self.capture_On -- flip offscreen buffer bool on/off
+    elseif message_id == MSG_SET_VIEW_PROJECTION then
+        self.view = message.view
+        self.projection = message.projection
+    elseif message_id == MSG_USE_CAMERA_PROJECTION then
+        self.projection_fn = function() return self.projection or vmath.matrix4() end
+    elseif message_id == MSG_USE_STRETCH_PROJECTION then
+        self.near = message.near or -1
+        self.far = message.far or 1
+        self.projection_fn = stretch_projection
+    end
+    
+end

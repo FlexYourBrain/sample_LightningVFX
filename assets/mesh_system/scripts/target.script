@@ -1,0 +1,13 @@
+-- This script is attached to the game object world_pivot: ship > bolt > beam_end to recieve a trigger response and send
+-- the other_id as message.target to the lazer script. When lazer script recieves the message it then sets the target
+-- for the lightning beam.
+-- 
+function on_message(self, message_id, message, sender)
+
+	if message_id == hash("trigger_response") then
+		if message.enter then
+			msg.post("/beam_start#lazer", "set_target", { target = message.other_id })
+		end
+	end
+
+end

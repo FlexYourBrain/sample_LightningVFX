@@ -1,0 +1,5 @@
+script: "/assets/mesh_system/render/DeLab.render_script"
+render_resources {
+  name: "capture"
+  path: "/assets/mesh_system/render/lightning.render_target"
+}

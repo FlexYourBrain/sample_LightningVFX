@@ -1,0 +1,281 @@
+local SET_CAPTURE = hash("set_capture")
+local FIRE_READY = hash("fire_ready")
+local ENABLE = hash("enable")
+local DISABLE = hash("disable")
+local FUSE_ID = hash("/fuse")
+local FLASH_ID = hash("/flash")
+
+local flare_sprite = "/flare#sprite"
+local background = "/misc#background"
+local lightning_mesh = "/beam_start#lightning"
+local reset_pos = vmath.vector3(0)
+local reset_tint = vmath.vector4(1)
+local tint_flash = vmath.vector4(1.8,1.8,1.8,1.2)
+
+local END_ID = hash("/beam_end")
+local beam_collision = "/beam_end#collisionobject"
+local beam_controller = "/ship#controller"
+local beam_half_width = 48.0
+
+local BIG_ENEMY = hash("/alienbig")
+local big_enemy_start_pos = vmath.vector3(280, 1181, 0.5)
+local big_enemy_end_pos = vmath.vector3(180, 745, 0.5)
+
+local SMALL_ENEMY = hash("/aliensmall")
+local small_enemy_start_pos = vmath.vector3(380, 1140, 0.4)
+local small_enemy_end_pos = vmath.vector3(480, 620, 0.4)
+
+
+local function animate_sprite_effect(sprite,scale,tint,scale_duration,tint_duration,playback,scale_only)
+
+    if not scale_only then
+        go.animate(sprite, "scale.x", playback, scale, go.EASING_LINEAR, scale_duration)
+        go.animate(sprite, "tint", playback, tint, go.EASING_LINEAR, tint_duration)
+    else
+        go.animate(sprite, "scale.x", playback, scale, go.EASING_LINEAR, scale_duration)
+    end
+
+end
+
+
+local function move_enemy(self,enemy,pos,delay)
+
+    local function drift(enemy,pos)
+        local random_number = math.random(50 , 200)
+        go.animate(enemy, "position.y", go.PLAYBACK_LOOP_PINGPONG, pos.y+random_number, go.EASING_INOUTSINE, 3.2)
+        go.animate(enemy, "position.x", go.PLAYBACK_LOOP_PINGPONG, pos.x+random_number, go.EASING_INOUTSINE, 4.3)
+    end
+    go.animate(enemy, "position", go.PLAYBACK_ONCE_FORWARD, pos, go.EASING_INOUTSINE, 2.0, delay, function() drift(enemy,pos) end)
+
+end
+
+
+local function start_scene()
+    
+    local function now_loop()
+        go.set(background, "animation_time", vmath.vector4())
+        go.animate(background, "animation_time", go.PLAYBACK_LOOP_FORWARD, 1.0, go.EASING_LINEAR, 7.0,0.0)
+    end
+    go.animate(background, "animation_time", go.PLAYBACK_ONCE_FORWARD, 5.0, go.EASING_INQUART, 3.3, 0.0, now_loop)
+    move_enemy(self,BIG_ENEMY,big_enemy_end_pos,4.4)
+    move_enemy(self,SMALL_ENEMY,small_enemy_end_pos,5.6)
+    animate_sprite_effect("/alienbig#sprite",1.04,nil,1,nil,go.PLAYBACK_LOOP_PINGPONG, true)
+    animate_sprite_effect("/aliensmall#sprite",1.04,nil,1,nil,go.PLAYBACK_LOOP_PINGPONG, true)
+
+end
+
+
+local function enable_shipfx()
+
+    msg.post(FUSE_ID, ENABLE)
+    msg.post(FLASH_ID, ENABLE)
+    msg.post(flare_sprite, ENABLE)
+
+    animate_sprite_effect(flare_sprite,1.25,tint_flash,0.2,0.1,go.PLAYBACK_LOOP_PINGPONG,false)
+
+end
+
+
+local function disable_shipfx()
+
+    msg.post(FUSE_ID, DISABLE)
+    msg.post(FLASH_ID, DISABLE)
+    msg.post(flare_sprite, DISABLE)
+    msg.post(lightning_mesh, DISABLE)
+
+end
+
+
+function init(self)
+
+    math.randomseed(socket.gettime(os.clock())*1000)
+
+    self.has_shot = false
+    self.is_locked_on = false
+    self.target = vmath.vector3(0)
+
+    disable_shipfx()
+    start_scene()
+
+end
+
+
+local function reset_properties(sprite_url)
+
+    go.cancel_animations(sprite_url)
+    go.set(sprite_url,"scale.x", 1)
+    go.set(sprite_url,"tint", reset_tint)
+
+end
+
+
+local function reset_enemy(self,enemy,sprite,pos)
+    
+    go.cancel_animations(enemy)
+    go.set_position(pos,enemy)
+    reset_properties(sprite)
+    local function reset_positions(self,enemy)
+        if enemy == BIG_ENEMY then
+            move_enemy(self,enemy,big_enemy_end_pos,0)
+            particlefx.stop("/particles_big#smoke_dark")
+            particlefx.stop("/particles_big#smoke_light")
+            animate_sprite_effect(sprite,1.04,nil,1,nil,go.PLAYBACK_LOOP_PINGPONG, true)
+        else
+            move_enemy(self,enemy,small_enemy_end_pos,0)
+            particlefx.stop("/particles_small#smoke_dark")
+            particlefx.stop("/particles_small#smoke_light")
+            animate_sprite_effect(sprite,1.04,nil,1,nil,go.PLAYBACK_LOOP_PINGPONG, true)
+        end
+    end
+    timer.delay(2.3, false, function() reset_positions(self, enemy) end)
+    
+end
+
+
+local function enemy_explode(self,enemy)
+    
+    local enemy_sprite = msg.url(nil,enemy, "sprite")
+    local function reseting(enemy)
+        if enemy == BIG_ENEMY then
+            reset_enemy(self, enemy, enemy_sprite, big_enemy_start_pos)
+        else
+            reset_enemy(self, enemy, enemy_sprite, small_enemy_start_pos)
+        end
+        reset_properties(enemy_sprite)
+        reset_target(self)
+    end
+    local function blowup()
+        if enemy == BIG_ENEMY then
+            particlefx.play("/particles_big#big_eyeball")
+            particlefx.play("/particles_big#big_chunk")
+            particlefx.play("/particles_big#big_horn")
+            particlefx.play("/particles_big#blood_green")
+        else
+            particlefx.play("/particles_small#small_eyeball")
+            particlefx.play("/particles_small#small_chunk")
+            particlefx.play("/particles_small#small_horn")
+            particlefx.play("/particles_small#blood_blue")
+        end
+    end
+    if enemy == BIG_ENEMY then
+        particlefx.play("/particles_big#smoke_dark")
+        particlefx.play("/particles_big#smoke_light")
+    else
+        particlefx.play("/particles_small#smoke_dark")
+        particlefx.play("/particles_small#smoke_light")
+    end
+    
+    animate_sprite_effect(enemy_sprite,1.08,tint_flash,0.4,0.2,go.PLAYBACK_LOOP_PINGPONG,false)
+    timer.delay(3.26, false, blowup)
+    timer.delay(3.3, false, function() reseting(enemy) end)
+    
+end
+
+
+local function shoot_lightning(self)
+    
+    self.has_shot = true
+    enable_shipfx()
+    msg.post(lightning_mesh, ENABLE)
+    msg.post("@render:", SET_CAPTURE)
+    go.animate(END_ID, "position.y", go.PLAYBACK_ONCE_FORWARD, 820, go.EASING_LINEAR, 0.1)
+    
+end
+
+
+local function update_quad_vertices(self)
+    
+    local beam_end = go.get_position(END_ID) -- Use beam_end game object as position anchor point for top 2 vertices
+    -------------------     Populate vertice positions     ----------------------
+
+    self.vertex3 = vmath.vector4(beam_end.x - beam_half_width, beam_end.y, 0, 0)    -- top left vertice
+    self.vertex2 = vmath.vector4(beam_end.x + beam_half_width, beam_end.y, 0, 0)    -- top right vertice
+    self.vertex1 = vmath.vector4(1.0 + beam_half_width, 1.0, 0, 0)                  -- bottom right vertice
+    self.vertex0 = vmath.vector4(1.0 - beam_half_width, 1.0, 0, 0)                  -- bottom left vertice
+
+    -- Update upper left triangle
+    self.positions[10] = self.vertex0.x    self.positions[13] = self.vertex2.x    self.positions[16] = self.vertex3.x
+    self.positions[11] = self.vertex0.y    self.positions[14] = self.vertex2.y    self.positions[17] = self.vertex3.y
+    self.positions[12] = self.vertex0.z    self.positions[15] = self.vertex2.z    self.positions[18] = self.vertex3.z
+    
+    -- Update bottom right triangle
+    self.positions[1] = self.vertex0.x    self.positions[4] = self.vertex1.x    self.positions[7] = self.vertex2.x
+    self.positions[2] = self.vertex0.y    self.positions[5] = self.vertex1.y    self.positions[8] = self.vertex2.y
+    self.positions[3] = self.vertex0.z    self.positions[6] = self.vertex1.z    self.positions[9] = self.vertex2.z
+
+    resource.set_buffer(self.mesh, self.buffer)
+    
+end
+
+
+local function focus_lightning(self)
+    
+    if self.is_locked_on then
+        local beam_pos = go.get_world_position(".")
+        local target_pos = go.get_world_position(self.target) - beam_pos
+        go.set_position(target_pos, END_ID)
+    end
+    ------------------- Buffer Control ------------------------
+    self.mesh = go.get(lightning_mesh, "vertices")
+    self.buffer = resource.get_buffer(self.mesh)
+    self.positions = buffer.get_stream(self.buffer, "position")  
+
+    update_quad_vertices(self)
+    
+end
+
+
+local function set_target(self,target)
+    
+    local function locked(self)
+        self.is_locked_on = true
+    end
+    enemy_explode(self,target)
+    msg.post(beam_collision, DISABLE)
+    self.target = target
+    local beam_pos = go.get_world_position(".")
+    local get_target_pos = go.get_world_position(self.target) - beam_pos
+    go.animate(END_ID, "position", go.PLAYBACK_ONCE_FORWARD, get_target_pos, go.EASING_LINEAR, 0.05, 0, locked)
+    
+end
+
+
+function reset_target(self)
+    
+    local function unlock()
+        msg.post(beam_collision, ENABLE)
+        msg.post(lightning_mesh, DISABLE)
+        msg.post(beam_controller, FIRE_READY)
+        msg.post("@render:", SET_CAPTURE)
+        disable_shipfx()
+        self.has_shot = false
+        
+        reset_properties(flare_sprite)
+    end
+    self.is_locked_on = false
+    timer.delay(0.11, false, unlock)
+    go.animate(END_ID, "position", go.PLAYBACK_ONCE_FORWARD, reset_pos, go.EASING_LINEAR, 0.1)
+    
+end
+
+
+function update(self, dt)
+    
+    if self.has_shot then
+        focus_lightning(self)
+    end
+    
+end
+
+
+function on_message(self, message_id, message)
+    
+    if message_id == hash("set_target") then
+        set_target(self, message.target)
+    elseif message_id == hash("fire_beam") then
+        if not self.has_shot then
+            shoot_lightning(self)
+        end
+    end
+    
+end
