@@ -1,12 +1,16 @@
-uniform highp mat4 view_proj;
+#version 140
 
+uniform vx_uniforms
+{
+    uniform highp mat4 view_proj;
+};
 // positions are in world space
-attribute highp vec4 position;
-attribute mediump vec2 texcoord0;
-attribute mediump vec4 tint;
+in highp vec4 position;
+in mediump vec2 texcoord0;
+in mediump vec4 tint;
 
-varying mediump vec2 var_texcoord0;
-varying mediump vec4 var_tint;
+out vec2 var_texcoord0;
+out vec4 var_tint;
 
 void main()
 {
