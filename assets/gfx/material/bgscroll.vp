@@ -1,13 +1,18 @@
-attribute highp vec4 position;
-attribute mediump vec2 texcoord0;
+#version 140
 
-uniform mediump mat4 mtx_worldview;
-uniform mediump mat4 mtx_proj;
-uniform mediump vec4 animation_time;
+uniform vx_uniforms
+{
+    uniform mat4 mtx_worldview;
+    uniform mat4 mtx_proj;
+    uniform vec4 animation_time;
+};
 
-varying mediump vec2 var_texcoord0;
-varying mediump vec2 var_texcoord1;
-varying mediump vec2 var_texcoord2;
+in vec4 position;
+in vec2 texcoord0;
+
+out vec2 var_texcoord0;
+out vec2 var_texcoord1;
+out vec2 var_texcoord2;
 
 void main()
 {

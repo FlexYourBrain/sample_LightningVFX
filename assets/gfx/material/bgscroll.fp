@@ -1,14 +1,18 @@
-varying mediump vec2 var_texcoord0;
-varying mediump vec2 var_texcoord1;
-varying mediump vec2 var_texcoord2;
+#version 140
 
-uniform lowp sampler2D tex0;
-uniform lowp sampler2D tex1;
+in vec2 var_texcoord0;
+in vec2 var_texcoord1;
+in vec2 var_texcoord2;
+
+out vec4 color_out;
+
+uniform sampler2D tex0;
+uniform sampler2D tex1;
 
 void main()
 {
-    vec4 bg = texture2D(tex0, var_texcoord1.xy);
-    vec4 debris = texture2D(tex1, var_texcoord2.xy);
+    vec4 bg = texture(tex0, var_texcoord1.xy);
+    vec4 debris = texture(tex1, var_texcoord2.xy);
     
-    gl_FragColor = vec4(bg.rgb + debris.rgb,1.0);
+    color_out = vec4(bg.rgb + debris.rgb,1.0);
 }

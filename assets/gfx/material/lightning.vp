@@ -1,8 +1,14 @@
-attribute highp vec4 position; 
-attribute mediump vec2 texcoord0;
+#version 140
 
-uniform highp mat4 worldview_proj;
-varying mediump vec2 var_texcoord0;
+uniform vx_uniforms
+{
+    uniform highp mat4 worldview_proj;
+};
+
+in vec4 position; 
+in vec2 texcoord0;
+
+out vec2 var_texcoord0;
 
 void main()
 {

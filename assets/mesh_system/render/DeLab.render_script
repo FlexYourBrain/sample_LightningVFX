@@ -64,7 +64,7 @@ function init(self)
 ------ Offscreen Buffer initialize --------
     self.capture_On = false -- boolean to turn capture on or off
     self.offscreen_buffer = "capture"
-    
+    update_rendertarget(self) -- update rt at launch to adjust for varying screen resolution
 end
 
 function update(self)
