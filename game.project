@@ -40,3 +40,6 @@ default_texture_min_filter = nearest
 default_texture_mag_filter = nearest
 texture_profiles = /assets/mesh_system/render/format.texture_profiles
 
+[render]
+clear_color_alpha = 0.0
+

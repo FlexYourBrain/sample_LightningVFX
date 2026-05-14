@@ -86,15 +86,7 @@ function update(self)
     render.set_blend_func(render.BLEND_SRC_ALPHA, render.BLEND_ONE_MINUS_SRC_ALPHA)
     render.enable_state(render.STATE_BLEND)
     
------------- RENDER OFFSCREEN BUFFER --------------------------
-    if self.capture_On then -- start rendering only when needed
-    
-        render.set_render_target(self.offscreen_buffer) -- set render target offscreen buffer
-        render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color}) -- clear the buffer color bit
-        render.draw(self.offscreen_sprite_pred) -- draw the offscreen predicate to the render target
-        render.set_render_target(render.RENDER_TARGET_DEFAULT) -- unbind render target
-    
-    end
+
 ------------ RENDER SCENE  ------------------------------------
     render.set_depth_mask(true)
     render.enable_state(render.STATE_DEPTH_TEST)
@@ -118,8 +110,17 @@ function update(self)
     --
     render.draw(self.tile_pred, {frustum = frustum_component})
     render.draw(self.particle_pred, {frustum = frustum_component})
+
+    ------------ RENDER OFFSCREEN BUFFER --------------------------
+    if self.capture_On then -- start rendering only when needed
+
+        render.set_render_target(self.offscreen_buffer) -- set render target offscreen buffer
+        render.clear({[render.BUFFER_COLOR_BIT] = self.clear_color}) -- clear the buffer color bit
+        render.draw(self.offscreen_sprite_pred) -- draw the offscreen predicate to the render target
+        render.set_render_target(render.RENDER_TARGET_DEFAULT) -- unbind render target
+
+    end
     -----------------------------------------------------------
-    
     -- debug
     render.draw_debug3d()
     
